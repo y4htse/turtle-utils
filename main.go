@@ -18,10 +18,18 @@ import (
 
 // BaseHandler is the health check function
 func BaseHandler(c *gin.Context) {
-	// TODO: add db and redis connection check
-	c.JSON(200, gin.H{
-		"status": "OK",
-	})
+	price, err := GetPriceHash(true)
+	if err != nil {
+		c.HTML(http.StatusInternalServerError, "500.tmpl", gin.H{
+			"error": err,
+		})
+	} else {
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+			"usdPrice": price.CurrentUsdPrice,
+			"btcPrice": price.CurrentBtcPrice,
+		})
+	}
+
 }
 
 // PullTrtlToBtcPrice hits the tradeogre API to get the current Turtle to Bitcoin price
@@ -246,6 +254,7 @@ func main() {
 		log.Fatalln("Must set $PORT")
 	}
 	r := gin.Default()
+	r.LoadHTMLGlob("templates/*")
 	r.GET("/", func(c *gin.Context) {
 		BaseHandler(c)
 	})
