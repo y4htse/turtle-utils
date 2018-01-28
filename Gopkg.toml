@@ -15,6 +15,6 @@
   name = "github.com/pkg/errors"
 
 [metadata]
-heroku-go = "1.9.2"
-heroku-install = "1.9.2"
-heroku-root = "github.com/y4htse/turtle-utils"
+  heroku-go = "1.9.2"
+  heroku-install = "1.9.2"
+  heroku-root = "github.com/y4htse/turtle-utils"
