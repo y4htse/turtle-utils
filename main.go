@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -248,6 +250,188 @@ func ConvertHandler(c *gin.Context) {
 
 }
 
+// ThresholdRequestQueryObject represents a comparison that needs to be made
+type ThresholdRequestQueryObject struct {
+	Currency     string  `json:"currency"`
+	Amount       float64 `json:"amount"`
+	queryObjType QueryObjectType
+}
+
+// ThresholdRequest is what is POST'd to check to see if a threshold has been met
+type ThresholdRequest struct {
+	GreaterThan      ThresholdRequestQueryObject `json:"greaterThan,omitempty"`
+	CallbackEndpoint string                      `json:"callbackEndpoint"`
+	LessThan         ThresholdRequestQueryObject `json:"lessThan,omitempty"`
+}
+
+// QueryObjectType This is how we do the comparison
+type QueryObjectType int
+
+// This is how we compare
+const (
+	GreaterThan QueryObjectType = 1
+	LessThan    QueryObjectType = 2
+)
+
+// SuccessCallbackEndpoint gets the URL for the success callback
+func (req *ThresholdRequest) SuccessCallbackEndpoint() string {
+	return fmt.Sprintf("%s/success", req.CallbackEndpoint)
+}
+
+// FailureCallbackEndpoint gets the URL for the failure callback
+func (req *ThresholdRequest) FailureCallbackEndpoint() string {
+	return fmt.Sprintf("%s/fail", req.CallbackEndpoint)
+}
+
+// GetCallbackUrls will conver the Urls
+func (req *ThresholdRequest) GetCallbackUrls() (successURL *url.URL, failureURL *url.URL, err error) {
+	successURL, successURLParseErr := url.ParseRequestURI(req.SuccessCallbackEndpoint())
+	if successURLParseErr != nil {
+		return successURL, failureURL, errors.Wrap(successURLParseErr, "Invalid successURL")
+	}
+
+	failureURL, failureURLParseErr := url.ParseRequestURI(req.FailureCallbackEndpoint())
+	if failureURLParseErr != nil {
+		return successURL, failureURL, errors.Wrap(successURLParseErr, "Invalid failureURL")
+	}
+
+	return successURL, failureURL, err
+}
+
+// Test is where the actual comparison happen
+func (query *ThresholdRequestQueryObject) Test(currentAmount float64) (thresholdIsMet bool) {
+	fmt.Printf("amount - %s\n", strconv.FormatFloat(query.Amount, 'f', -1, 64))
+	fmt.Printf("currentAmount - %s\n", strconv.FormatFloat(currentAmount, 'f', -1, 64))
+	q, _ := json.Marshal(query)
+	fmt.Println(string(q))
+	if query.Amount > currentAmount && query.queryObjType == GreaterThan {
+		fmt.Println("Testing GreaterThan")
+		return true
+	}
+
+	if query.Amount < currentAmount && query.queryObjType == LessThan {
+		fmt.Println("Testing LessThan")
+		return true
+	}
+
+	return thresholdIsMet
+}
+
+// PostFailureToCallback will attempt to call the user's failure callback service
+func (req *ThresholdRequest) PostFailureToCallback(err error) {
+	fmt.Println(err)
+}
+
+// PostSuccessToCallback is what will call the callback with the current price
+func (req *ThresholdRequest) PostSuccessToCallback(price *CurrentPrice) {
+	fmt.Println("Posting to success endpoint")
+	url := req.SuccessCallbackEndpoint()
+
+	binJSON, jsonMarshallErr := json.Marshal(gin.H{"currentPrice": price})
+	if jsonMarshallErr != nil {
+		req.PostFailureToCallback(jsonMarshallErr)
+		return // Escape
+	}
+	fmt.Println(string(binJSON))
+	request, err := http.NewRequest("POST", url, bytes.NewBuffer(binJSON))
+	request.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(request)
+	if err != nil {
+		req.PostFailureToCallback(err)
+		return
+	}
+	r, _ := json.Marshal(resp)
+	fmt.Println(string(r))
+	defer resp.Body.Close()
+}
+
+// TestThreshold This is what will call the apis if the threshold is met
+func (req *ThresholdRequest) TestThreshold(successURL *url.URL, failureURL *url.URL) {
+	fmt.Println("Testing the threshold")
+
+	sucessURL, failureURL, callbackURLParseErr := req.GetCallbackUrls()
+	if callbackURLParseErr != nil {
+		fmt.Printf("Invalid callbackURL\n", callbackURLParseErr)
+	}
+	fmt.Printf("successUrl = %s\n", sucessURL)
+	fmt.Printf("successUrl = %s\n", failureURL)
+
+	if (req.GreaterThan.Amount <= 0 && req.LessThan.Amount <= 0) || (req.GreaterThan.Amount > 0 && req.LessThan.Amount > 0) {
+		fmt.Println("SEND ERROR") // TODO
+	}
+
+	if (req.GreaterThan.Currency == "" && req.LessThan.Currency == "") || (req.GreaterThan.Currency != "" && req.LessThan.Currency != "") {
+		fmt.Println("SEND ERROR") // TODO
+	}
+
+	var query *ThresholdRequestQueryObject
+	if req.GreaterThan.Amount > 0 {
+		query = &req.GreaterThan
+		query.queryObjType = GreaterThan
+		fmt.Println("It is GreaterThan!")
+	} else if req.LessThan.Amount < 1 {
+		query = &req.LessThan
+		query.queryObjType = LessThan
+		fmt.Println("It is LessThan!")
+	} else {
+		fmt.Println("WTF is happening")
+	}
+
+	q, _ := json.Marshal(query)
+	fmt.Println(string(q))
+
+	price, getPriceErr := GetPriceHash(false) // TODO: get the current price
+	if getPriceErr != nil {
+		req.PostFailureToCallback(getPriceErr)
+		return
+	}
+
+	var currentPrice float64
+	if query.Currency == "BTC" {
+		currentPrice = price.btcPrice
+	} else if query.Currency == "USD" {
+		currentPrice = price.usdPrice
+	} else {
+		req.PostFailureToCallback(errors.New("Could not determine currency to compare"))
+		return
+	}
+	fmt.Printf("currentPrice - %f\n", currentPrice)
+	thresholdMet := query.Test(currentPrice)
+
+	if thresholdMet {
+		// TODO: call the API
+		fmt.Println("THRESHOLD IS MET")
+		req.PostSuccessToCallback(&price)
+	} else {
+		fmt.Println("THRESHOLD NOT MET")
+	}
+
+	fmt.Println("Done testing threshold")
+}
+
+// ThresholdHandler will check the price of TRTL against a given threshold and callback to an endpoint if TRTL is above that threshold
+func ThresholdHandler(c *gin.Context) {
+	var req *ThresholdRequest
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": errors.Wrap(bindErr, "Did not recognize request, please consult docs"),
+		})
+	}
+	successCallbackEndoint, failureCallbackEndpoint, urlParseErr := req.GetCallbackUrls()
+	if urlParseErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": urlParseErr,
+		})
+	}
+	go req.TestThreshold(successCallbackEndoint, failureCallbackEndpoint)
+	c.JSON(http.StatusOK, gin.H{
+		"successCallbackEndpoint": successCallbackEndoint.String(),
+		"failureCallbackEndpoint": failureCallbackEndpoint.String(),
+	})
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -263,6 +447,9 @@ func main() {
 	})
 	r.GET("/convert", func(c *gin.Context) {
 		ConvertHandler(c)
+	})
+	r.POST("/threshold", func(c *gin.Context) {
+		ThresholdHandler(c)
 	})
 	r.Run(fmt.Sprintf("0.0.0.0:%s", port))
 }
