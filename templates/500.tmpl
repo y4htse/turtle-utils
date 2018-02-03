@@ -6,19 +6,28 @@
           background-color: black;
           color: green;
         }
-        h1 {
+        table {
             left: 0;
             line-height: 25px;
-            top: 50%;
-            width: 100%;
             margin-top: -100px;
             position: absolute;
             text-align: center;
+            top: 50%;
+            width: 100%;
+            color: green;
           }
 
       </style>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body>
-    <h1>Something is wrong.</h1>
+    <table>
+      <thead><td><h1>Something is Wrong</h1></td></thead>
+      <tbody>
+        <tr>
+          <h2><td id="error">{{.error}}</td></h2>
+        </tr>
+      </tbody>
+    </table>
   </body>
 </html>

@@ -13,6 +13,10 @@ $env:PORT = "8675"
 
 ## Endpoints
 
+### /
+
+Bare endpoint will load a super simple website that shows the current TRTL price.
+
 ### /price
 
 This endpoint returns JSON with the current TRTL -> BTC price on TradeOgre converted to USD using Coinbase's BTC -> USD API.
