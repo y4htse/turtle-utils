@@ -1,5 +1,16 @@
 # turtle-utils
 
+## How to start
+
+### Windows
+
+Make sure PORT is an environment variable.
+
+Using PowerShell:
+```powershell
+$env:PORT = "8675"
+```
+
 ## Endpoints
 
 ### /price
