@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/thinkerou/favicon"
 	handlers "github.com/y4htse/turtle-utils/handlers"
 )
 
@@ -16,6 +17,7 @@ func main() {
 		log.Fatalln("Must set $PORT")
 	}
 	r := gin.Default()
+	r.Use(favicon.New("favicon.ico"))
 	r.LoadHTMLGlob("templates/*")
 	r.GET("/", func(c *gin.Context) {
 		handlers.BaseHandler(c)

@@ -52,6 +52,12 @@
   revision = "30136e27e2ac8d167177e8a583aa4c3fea5be833"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/thinkerou/favicon"
+  packages = ["."]
+  revision = "94a442a49da6e2d44bdd5e0d2e2e185c43a19d93"
+
+[[projects]]
   name = "github.com/ugorji/go"
   packages = ["codec"]
   revision = "9831f2c3ac1068a78f50999a30db84270f647af6"
@@ -78,6 +84,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c094d6fd689f831a914642593ad127e8042fc9c653726a7bad5f0730a1f6dba5"
+  inputs-digest = "852e1aeb84ff9814c6bb399850626d938604e5c7329701123daa74fbf8cf120d"
   solver-name = "gps-cdcl"
   solver-version = 1
