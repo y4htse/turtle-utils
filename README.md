@@ -1,4 +1,5 @@
-# turtle-utils [![Build Status](https://travis-ci.org/y4htse/turtle-utils.svg?branch=master)](https://travis-ci.org/y4htse/turtle-utils)
+# turtle-utils [![Build Status](https://travis-ci.org/y4htse/turtle-utils.svg?branch=master)](https://travis-ci.org/y4htse/turtle-utils)[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy?template=https://github.com/y4htse/turtle-utils)
+
 
 ## How to start
 
