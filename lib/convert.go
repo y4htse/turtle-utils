@@ -46,6 +46,11 @@ func ConvertTurtle(trtl int64, forceCheck bool) (priceHash CurrentPrice, err err
 	if getCurrentPriceError != nil {
 		return priceHash, errors.Wrap(getCurrentPriceError, "Problem getting the current price")
 	}
+	return ConvertTurtlePrice(currentPrice, trtl)
+}
+
+// ConvertTurtlePrice actually does the work of converting trtl to usd
+func ConvertTurtlePrice(currentPrice CurrentPrice, trtl int64) (priceHash CurrentPrice, err error) {
 	currentPrice.btcPrice = currentPrice.btcPrice * float64(trtl)
 	currentPrice.usdPrice = currentPrice.usdPrice * float64(trtl)
 	convertedPrice := currentPrice.SetCurrentPrices()
